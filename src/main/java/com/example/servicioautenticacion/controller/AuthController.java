@@ -1,66 +1,94 @@
+
 package com.example.servicioautenticacion.controller;
 
+import com.example.servicioautenticacion.ServicioContrasenas;
+import com.example.servicioautenticacion.Usuario;
+import com.example.servicioautenticacion.UsuarioRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    // Almacenamiento temporal de usuarios registrados.
-    // Se utiliza un Map para mantener el proyecto sencillo.
-    private final Map<String, String> usuarios = new HashMap<>();
+    private final UsuarioRepository usuarioRepository;
+    private final ServicioContrasenas servicioContrasenas;
 
-    // Servicio para registrar un nuevo usuario.
+    public AuthController(
+            UsuarioRepository usuarioRepository,
+            ServicioContrasenas servicioContrasenas) {
+        this.usuarioRepository = usuarioRepository;
+        this.servicioContrasenas = servicioContrasenas;
+    }
+
     @PostMapping("/registro")
-    public String registrar(@RequestBody Usuario usuario) {
+    public ResponseEntity<Map<String, String>> registrar(
+            @RequestBody Usuario usuario) {
 
-        // Verifica que el usuario y la contraseña no estén vacíos.
-        if (usuario.usuario == null || usuario.usuario.isBlank()
-                || usuario.contrasena == null || usuario.contrasena.isBlank()) {
+        if (usuario.getUsuario() == null
+                || usuario.getUsuario().isBlank()
+                || usuario.getContrasena() == null
+                || usuario.getContrasena().isBlank()) {
 
-            return "El usuario y la contraseña son obligatorios.";
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje",
+                            "El usuario y la contraseña son obligatorios."));
         }
 
-        // Verifica si el usuario ya existe.
-        if (usuarios.containsKey(usuario.usuario)) {
-            return "El usuario ya está registrado.";
+        if (usuario.getUsuario().length() > 100
+                || usuario.getContrasena().length() < 8
+                || usuario.getContrasena().length() > 72) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje",
+                            "El usuario debe tener máximo 100 caracteres y "
+                            + "la contraseña entre 8 y 72 caracteres."));
         }
 
-        // Guarda temporalmente el usuario y la contraseña.
-        usuarios.put(usuario.usuario, usuario.contrasena);
+        if (usuarioRepository.existsByUsuario(usuario.getUsuario().trim())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of("mensaje", "El usuario ya está registrado."));
+        }
 
-        return "Usuario registrado correctamente.";
+        Usuario nuevoUsuario = new Usuario(
+                usuario.getUsuario().trim(),
+                servicioContrasenas.codificar(usuario.getContrasena()));
+
+        usuarioRepository.save(nuevoUsuario);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                Map.of("mensaje", "Usuario registrado correctamente."));
     }
 
-    // Servicio para iniciar sesión.
     @PostMapping("/login")
-    public String iniciarSesion(@RequestBody Usuario usuario) {
+    public ResponseEntity<Map<String, String>> iniciarSesion(
+            @RequestBody Usuario usuario) {
 
-        // Busca la contraseña asociada al usuario.
-        String contrasenaGuardada = usuarios.get(usuario.usuario);
+        if (usuario.getUsuario() == null
+                || usuario.getUsuario().isBlank()
+                || usuario.getContrasena() == null
+                || usuario.getContrasena().isBlank()) {
 
-        // Comprueba que el usuario exista y que la contraseña coincida.
-        if (contrasenaGuardada != null
-                && contrasenaGuardada.equals(usuario.contrasena)) {
-
-            return "Autenticación satisfactoria.";
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje",
+                            "El usuario y la contraseña son obligatorios."));
         }
 
-        // Si los datos no coinciden, devuelve un mensaje de error.
-        return "Error en la autenticación.";
-    }
-
-    // Clase utilizada para recibir el usuario y la contraseña
-    // enviados en las solicitudes del servicio web.
-    public static class Usuario {
-
-        public String usuario;
-        public String contrasena;
+        return usuarioRepository.findByUsuario(usuario.getUsuario().trim())
+                .filter(guardado -> servicioContrasenas.verificar(
+                        usuario.getContrasena(),
+                        guardado.getContrasena()))
+                .map(guardado -> ResponseEntity.ok(
+                        Map.of("mensaje", "Autenticación satisfactoria.")))
+                .orElseGet(() -> ResponseEntity.status(
+                        HttpStatus.UNAUTHORIZED).body(
+                        Map.of("mensaje",
+                                "Error en la autenticación.")));
     }
 }

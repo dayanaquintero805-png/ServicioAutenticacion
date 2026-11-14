@@ -19,8 +19,19 @@ public class ReflexionController {
     }
 
     @PostMapping
-    public ResponseEntity<?> guardarReflexion(@RequestBody Reflexion reflexion) {
+public ResponseEntity<?> guardarReflexion(
+        @RequestBody Reflexion reflexion,
+        jakarta.servlet.http.HttpSession sesion) {
+    String usuarioAutenticado =
+        (String) sesion.getAttribute("usuarioAutenticado");
 
+if (usuarioAutenticado == null) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+            Map.of("mensaje", "Debes iniciar sesión para guardar una reflexión.")
+    );
+}
+
+reflexion.setNombreUsuario(usuarioAutenticado);
         if (reflexion.getNombreUsuario() == null
                 || reflexion.getNombreUsuario().isBlank()
                 || reflexion.getContenido() == null
@@ -46,10 +57,26 @@ public class ReflexionController {
     }
 
     @GetMapping("/{nombreUsuario}")
-    public List<Reflexion> listarReflexiones(
-            @PathVariable String nombreUsuario) {
+public ResponseEntity<List<Reflexion>> listarReflexiones(
+        @PathVariable String nombreUsuario,
+        jakarta.servlet.http.HttpSession sesion) { 
+    String usuarioAutenticado =
+        (String) sesion.getAttribute("usuarioAutenticado");
 
-        return reflexionRepository
-                .findByNombreUsuarioOrderByFechaDesc(nombreUsuario);
-    }
+if (usuarioAutenticado == null) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 }
+
+if (!usuarioAutenticado.equals(nombreUsuario)) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    
+    }
+
+return ResponseEntity.ok(
+        reflexionRepository
+                .findByNombreUsuarioOrderByFechaDesc(usuarioAutenticado)
+    );
+       }
+    }
+    
+        

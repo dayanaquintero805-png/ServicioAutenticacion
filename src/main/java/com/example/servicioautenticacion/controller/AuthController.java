@@ -67,28 +67,34 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> iniciarSesion(
-            @RequestBody Usuario usuario) {
+public ResponseEntity<Map<String, String>> iniciarSesion(
+        @RequestBody Usuario usuario,
+        jakarta.servlet.http.HttpSession sesion) {
 
-        if (usuario.getUsuario() == null
-                || usuario.getUsuario().isBlank()
-                || usuario.getContrasena() == null
-                || usuario.getContrasena().isBlank()) {
+    if (usuario.getUsuario() == null
+            || usuario.getUsuario().isBlank()
+            || usuario.getContrasena() == null
+            || usuario.getContrasena().isBlank()) {
 
-            return ResponseEntity.badRequest().body(
+        return ResponseEntity.badRequest().body(
+                Map.of("mensaje",
+                        "El usuario y la contraseña son obligatorios."));
+    }
+
+    return usuarioRepository.findByUsuario(usuario.getUsuario().trim())
+            .filter(guardado -> servicioContrasenas.verificar(
+                    usuario.getContrasena(),
+                    guardado.getContrasena()))
+            .map(guardado -> {
+                sesion.setAttribute("usuarioAutenticado",
+                        guardado.getUsuario());
+
+                return ResponseEntity.ok(
+                        Map.of("mensaje", "Autenticación satisfactoria."));
+            })
+            .orElseGet(() -> ResponseEntity.status(
+                    HttpStatus.UNAUTHORIZED).body(
                     Map.of("mensaje",
-                            "El usuario y la contraseña son obligatorios."));
-        }
-
-        return usuarioRepository.findByUsuario(usuario.getUsuario().trim())
-                .filter(guardado -> servicioContrasenas.verificar(
-                        usuario.getContrasena(),
-                        guardado.getContrasena()))
-                .map(guardado -> ResponseEntity.ok(
-                        Map.of("mensaje", "Autenticación satisfactoria.")))
-                .orElseGet(() -> ResponseEntity.status(
-                        HttpStatus.UNAUTHORIZED).body(
-                        Map.of("mensaje",
-                                "Error en la autenticación.")));
+                            "Error en la autenticación.")));
     }
 }

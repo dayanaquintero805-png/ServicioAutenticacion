@@ -22,8 +22,19 @@ public class RegistroEmocionalController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> guardarRegistro(
-            @RequestBody RegistroEmocional registro) {
+public ResponseEntity<Map<String, String>> guardarRegistro(
+        @RequestBody RegistroEmocional registro,
+        jakarta.servlet.http.HttpSession sesion) { 
+    String usuarioAutenticado =
+        (String) sesion.getAttribute("usuarioAutenticado");
+
+if (usuarioAutenticado == null) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+            Map.of("mensaje", "Debes iniciar sesión para guardar un registro.")
+    );
+}
+
+registro.setNombreUsuario(usuarioAutenticado);
 
         if (registro.getNombreUsuario() == null
                 || registro.getNombreUsuario().isBlank()
@@ -67,9 +78,20 @@ public class RegistroEmocionalController {
                 Map.of("mensaje", "Registro emocional guardado correctamente."));
     }
 
-    @GetMapping("/{nombreUsuario}")
-    public ResponseEntity<List<RegistroEmocional>> consultarRegistros(
-            @PathVariable String nombreUsuario) {
+   @GetMapping("/{nombreUsuario}")
+public ResponseEntity<List<RegistroEmocional>> consultarRegistros(
+        @PathVariable String nombreUsuario,
+        jakarta.servlet.http.HttpSession sesion) { 
+    String usuarioAutenticado =
+        (String) sesion.getAttribute("usuarioAutenticado");
+
+if (usuarioAutenticado == null) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+}
+
+if (!usuarioAutenticado.equals(nombreUsuario)) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+}
 
         if (nombreUsuario == null || nombreUsuario.isBlank()
                 || nombreUsuario.length() > 100) {

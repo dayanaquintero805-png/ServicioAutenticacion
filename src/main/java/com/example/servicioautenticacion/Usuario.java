@@ -21,13 +21,17 @@ public class Usuario {
 
     @Column(nullable = false)
     private String contrasena;
-
+    
+    @Column(unique = true, length = 150)
+    private String correo;
+    
     public Usuario() {
     }
 
-    public Usuario(String usuario, String contrasena) {
+    public Usuario(String usuario, String contrasena,String correo) {
         this.usuario = usuario;
         this.contrasena = contrasena;
+        this.correo = correo;
     }
 
     public Long getId() {
@@ -46,7 +50,17 @@ public class Usuario {
         return contrasena;
     }
 
+    
     public void setContrasena(String contrasena) {
-        this.contrasena = contrasena;
+    this.contrasena = contrasena;
     }
-}
+
+    public String getCorreo() {
+    return correo;
+    }
+
+    public void setCorreo(String correo) {
+    this.correo = correo;
+    }
+    }
+

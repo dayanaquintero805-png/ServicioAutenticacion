@@ -1,16 +1,18 @@
+
 package com.example.servicioautenticacion.controller;
 
 import com.example.servicioautenticacion.ServicioContrasenas;
+import com.example.servicioautenticacion.ServicioCorreo;
+import com.example.servicioautenticacion.ServicioRecuperacion;
 import com.example.servicioautenticacion.Usuario;
 import com.example.servicioautenticacion.UsuarioRepository;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.example.servicioautenticacion.ServicioCorreo;
-import com.example.servicioautenticacion.ServicioRecuperacion;
 
 import java.util.Map;
 
@@ -23,17 +25,16 @@ public class AuthController {
     private final ServicioCorreo servicioCorreo;
     private final ServicioRecuperacion servicioRecuperacion;
 
-   public AuthController(
-        UsuarioRepository usuarioRepository,
-        ServicioContrasenas servicioContrasenas,
-        ServicioCorreo servicioCorreo,
-        ServicioRecuperacion servicioRecuperacion) {
+    public AuthController(
+            UsuarioRepository usuarioRepository,
+            ServicioContrasenas servicioContrasenas,
+            ServicioCorreo servicioCorreo,
+            ServicioRecuperacion servicioRecuperacion) {
 
-    this.usuarioRepository = usuarioRepository;
-    this.servicioContrasenas = servicioContrasenas;
-    this.servicioCorreo = servicioCorreo;
-    this.servicioRecuperacion = servicioRecuperacion;
-
+        this.usuarioRepository = usuarioRepository;
+        this.servicioContrasenas = servicioContrasenas;
+        this.servicioCorreo = servicioCorreo;
+        this.servicioRecuperacion = servicioRecuperacion;
     }
 
     @PostMapping("/registro")
@@ -64,30 +65,31 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
                     Map.of("mensaje", "El usuario ya está registrado."));
         }
+
         String correo = usuario.getCorreo();
 
-if (correo == null || correo.isBlank()
-        || correo.length() > 150
-        || !correo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+        if (correo == null || correo.isBlank()
+                || correo.length() > 150
+                || !correo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
 
-    return ResponseEntity.badRequest().body(
-            Map.of("mensaje", "Ingresa un correo electrónico válido."));
-}
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje", "Ingresa un correo electrónico válido."));
+        }
 
-correo = correo.trim().toLowerCase();
+        correo = correo.trim().toLowerCase();
 
-if (usuarioRepository.existsByCorreo(correo)) {
-    return ResponseEntity.status(HttpStatus.CONFLICT).body(
-            Map.of("mensaje", "El correo ya está registrado."));
-}
+        if (usuarioRepository.existsByCorreo(correo)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of("mensaje", "El correo ya está registrado."));
+        }
 
        
 
-      Usuario nuevoUsuario = new Usuario(
-        usuario.getUsuario().trim(),
-        servicioContrasenas.codificar(usuario.getContrasena()),
-        correo
-);
+        Usuario nuevoUsuario = new Usuario(
+                usuario.getUsuario().trim(),
+                servicioContrasenas.codificar(usuario.getContrasena()),
+                correo
+        );
 
         usuarioRepository.save(nuevoUsuario);
 
@@ -96,99 +98,110 @@ if (usuarioRepository.existsByCorreo(correo)) {
     }
 
     @PostMapping("/login")
-public ResponseEntity<Map<String, String>> iniciarSesion(
-        @RequestBody Usuario usuario,
-        jakarta.servlet.http.HttpSession sesion) {
+    public ResponseEntity<Map<String, String>> iniciarSesion(
+            @RequestBody Usuario usuario,
+            jakarta.servlet.http.HttpSession sesion) {
 
-    if (usuario.getUsuario() == null
-            || usuario.getUsuario().isBlank()
-            || usuario.getContrasena() == null
-            || usuario.getContrasena().isBlank()) {
+        if (usuario.getUsuario() == null
+                || usuario.getUsuario().isBlank()
+                || usuario.getContrasena() == null
+                || usuario.getContrasena().isBlank()) {
 
-        return ResponseEntity.badRequest().body(
-                Map.of("mensaje",
-                        "El usuario y la contraseña son obligatorios."));
-    }
-
-    return usuarioRepository.findByUsuario(usuario.getUsuario().trim())
-            .filter(guardado -> servicioContrasenas.verificar(
-                    usuario.getContrasena(),
-                    guardado.getContrasena()))
-            .map(guardado -> {
-                sesion.setAttribute("usuarioAutenticado",
-                        guardado.getUsuario());
-
-                return ResponseEntity.ok(
-                        Map.of("mensaje", "Autenticación satisfactoria."));
-            })
-            .orElseGet(() -> ResponseEntity.status(
-                    HttpStatus.UNAUTHORIZED).body(
+            return ResponseEntity.badRequest().body(
                     Map.of("mensaje",
-                            "Error en la autenticación.")));
+                            "El usuario y la contraseña son obligatorios."));
+        }
+
+        return usuarioRepository.findByUsuario(usuario.getUsuario().trim())
+                .filter(guardado -> servicioContrasenas.verificar(
+                        usuario.getContrasena(),
+                        guardado.getContrasena()))
+                .map(guardado -> {
+                    sesion.setAttribute("usuarioAutenticado",
+                            guardado.getUsuario());
+
+                    return ResponseEntity.ok(
+                            Map.of("mensaje", "Autenticación satisfactoria."));
+                })
+                .orElseGet(() -> ResponseEntity.status(
+                        HttpStatus.UNAUTHORIZED).body(
+                        Map.of("mensaje", "Error en la autenticación.")));
     }
 
-@PostMapping("/recuperar")
-public ResponseEntity<Map<String, String>> recuperarContrasena(
-        @RequestBody Map<String, String> datos) {
+    @PostMapping("/recuperar")
+    public ResponseEntity<Map<String, String>> recuperarContrasena(
+            @RequestBody Map<String, String> datos) {
 
-    String correo = datos.get("correo");
+        String correo = datos.get("correo");
 
-    if (correo == null || correo.isBlank()) {
-        return ResponseEntity.badRequest().body(
-                Map.of("mensaje", "El correo es obligatorio."));
-    }
+        if (correo == null || correo.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje", "El correo es obligatorio."));
+        }
 
-   final String correoNormalizado = correo.trim().toLowerCase();
+        String correoNormalizado = correo.trim().toLowerCase();
 
-usuarioRepository.findByCorreo(correoNormalizado).ifPresent(usuario -> {
+        var usuarioEncontrado = usuarioRepository.findByCorreo(correoNormalizado);
 
-        String token = servicioRecuperacion.generarToken();
+        System.out.println("¿Usuario encontrado?: "
+                + usuarioEncontrado.isPresent());
 
-        servicioRecuperacion.guardarToken(token, usuario);
+        usuarioEncontrado.ifPresent(usuario -> {
 
-        String enlace =
-                "https://dayanaquintero805-png.github.io/TakeCareWebNueva/"
-                + "?token=" + token;
+            System.out.println("Usuario encontrado. Generando token...");
 
-        servicioCorreo.enviarCorreoRecuperacion(
-                usuario.getCorreo(), enlace);
-    });
+            String token = servicioRecuperacion.generarToken();
 
-    return ResponseEntity.ok(
-            Map.of("mensaje",
-                    "Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña."));
-    }
-@PostMapping("/restablecer")
-public ResponseEntity<Map<String, String>> restablecerContrasena(
-        @RequestBody Map<String, String> datos) {
+            servicioRecuperacion.guardarToken(token, usuario);
 
-    String token = datos.get("token");
-    String nuevaContrasena = datos.get("contrasena");
+            String enlace =
+                    "https://dayanaquintero805-png.github.io/TakeCareWebNueva/"
+                    + "?token=" + token;
 
-    if (token == null || token.isBlank()
-            || nuevaContrasena == null
-            || nuevaContrasena.length() < 8
-            || nuevaContrasena.length() > 72) {
+            System.out.println("Intentando enviar correo...");
 
-        return ResponseEntity.badRequest().body(
+            servicioCorreo.enviarCorreoRecuperacion(
+                    usuario.getCorreo(), enlace);
+
+            System.out.println("Proceso de envío finalizado.");
+        });
+
+        return ResponseEntity.ok(
                 Map.of("mensaje",
-                        "El enlace o la nueva contraseña no son válidos."));
+                        "Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña."));
     }
 
-    boolean actualizado =
-            servicioRecuperacion.restablecerContrasena(
-                    token,
-                    nuevaContrasena,
-                    servicioContrasenas);
+    @PostMapping("/restablecer")
+    public ResponseEntity<Map<String, String>> restablecerContrasena(
+            @RequestBody Map<String, String> datos) {
 
-    if (!actualizado) {
-        return ResponseEntity.badRequest().body(
+        String token = datos.get("token");
+        String nuevaContrasena = datos.get("contrasena");
+
+        if (token == null || token.isBlank()
+                || nuevaContrasena == null
+                || nuevaContrasena.length() < 8
+                || nuevaContrasena.length() > 72) {
+
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje",
+                            "El enlace o la nueva contraseña no son válidos."));
+        }
+
+        boolean actualizado =
+                servicioRecuperacion.restablecerContrasena(
+                        token,
+                        nuevaContrasena,
+                        servicioContrasenas);
+
+        if (!actualizado) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("mensaje",
+                            "El enlace ha expirado o ya fue utilizado."));
+        }
+
+        return ResponseEntity.ok(
                 Map.of("mensaje",
-                        "El enlace ha expirado o ya fue utilizado."));
-    }
-
-    return ResponseEntity.ok(
-            Map.of("mensaje",
-                    "La contraseña se actualizó correctamente."));
+                        "La contraseña se actualizó correctamente."));
     }
 }

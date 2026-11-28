@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Map;
 
@@ -204,4 +206,51 @@ public class AuthController {
                 Map.of("mensaje",
                         "La contraseña se actualizó correctamente."));
     }
-}
+    
+        // ==========================================
+    // COMPROBAR SESIÓN ACTIVA
+    // ==========================================
+
+    @GetMapping("/sesion")
+    public ResponseEntity<Map<String, String>> comprobarSesion(
+            HttpSession sesion) {
+
+        String usuario = (String) sesion.getAttribute("usuarioAutenticado");
+
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    Map.of("mensaje", "La sesión ha expirado."));
+        }
+
+        return ResponseEntity.ok(
+                Map.of("usuario", usuario));
+    }
+
+    @PostMapping("/mantener-sesion")
+    public ResponseEntity<Map<String, String>> mantenerSesion(
+            HttpSession sesion) {
+
+        String usuario = (String) sesion.getAttribute("usuarioAutenticado");
+
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    Map.of("mensaje", "La sesión ha expirado."));
+        }
+
+        sesion.setAttribute("usuarioAutenticado", usuario);
+
+        return ResponseEntity.ok(
+                Map.of("mensaje", "La sesión continúa activa."));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> cerrarSesion(
+            HttpSession sesion) {
+
+        sesion.invalidate();
+
+        return ResponseEntity.ok(
+                Map.of("mensaje", "Sesión cerrada correctamente."));
+    }
+    
+ }
